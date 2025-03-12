@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - PermaLog{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Admin Dashboard</h1>
+            <p class="lead">Manage and monitor the PermaLog system.</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">User Management</h5>
+                </div>
+                <div class="card-body">
+                    <p>Manage user accounts, roles, and permissions.</p>
+                    <a href="{{ url_for('admin.admin_users') }}" class="btn btn-primary">
+                        <i class="bi bi-people-fill me-1"></i> Manage Users
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">API Keys</h5>
+                </div>
+                <div class="card-body">
+                    <p>Manage API keys for all users.</p>
+                    <a href="{{ url_for('admin.admin_api_keys') }}" class="btn btn-primary">
+                        <i class="bi bi-key-fill me-1"></i> Manage API Keys
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">System Logs</h5>
+                </div>
+                <div class="card-body">
+                    <p>View and search all system logs.</p>
+                    <a href="{{ url_for('main.logs_page') }}" class="btn btn-primary">
+                        <i class="bi bi-journal-text me-1"></i> View Logs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">System Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div id="system-stats">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading system statistics...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div id="recent-activity">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading recent activity...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Load system statistics
+        fetch('/api/admin/stats')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load system statistics');
+                }
+                return response.json();
+            })
+            .then(stats => {
+                displaySystemStats(stats);
+            })
+            .catch(error => {
+                console.error('Error loading system statistics:', error);
+                document.getElementById('system-stats').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-circle-fill me-2"></i>
+                        Error loading system statistics. Please try again.
+                    </div>
+                `;
+            });
+        
+        // Load recent activity
+        fetch('/api/admin/activity')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load recent activity');
+                }
+                return response.json();
+            })
+            .then(activity => {
+                displayRecentActivity(activity);
+            })
+            .catch(error => {
+                console.error('Error loading recent activity:', error);
+                document.getElementById('recent-activity').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-circle-fill me-2"></i>
+                        Error loading recent activity. Please try again.
+                    </div>
+                `;
+            });
+    });
+    
+    function displaySystemStats(stats) {
+        // For now, just display placeholder stats
+        const statsHtml = `
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="card bg-light text-dark">
+                        <div class="card-body text-center">
+                            <h3 class="display-4">${stats?.users || '0'}</h3>
+                            <p class="text-dark mb-0">Users</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card bg-light text-dark">
+                        <div class="card-body text-center">
+                            <h3 class="display-4">${stats?.api_keys || '0'}</h3>
+                            <p class="text-dark mb-0">API Keys</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card bg-light text-dark">
+                        <div class="card-body text-center">
+                            <h3 class="display-4">${stats?.logs || '0'}</h3>
+                            <p class="text-dark mb-0">Logs</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card bg-light text-dark">
+                        <div class="card-body text-center">
+                            <h3 class="display-4">${stats?.active_sessions || '0'}</h3>
+                            <p class="text-dark mb-0">Active Sessions</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('system-stats').innerHTML = statsHtml;
+    }
+    
+    function displayRecentActivity(activity) {
+        // For now, just display placeholder activity
+        if (!activity || activity.length === 0) {
+            document.getElementById('recent-activity').innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-calendar-x" style="font-size: 2rem;"></i>
+                    <p class="mt-2">No recent activity found.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let activityHtml = `
+            <ul class="list-group">
+        `;
+        
+        activity.forEach(item => {
+            activityHtml += `
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi ${item.icon} me-2"></i>
+                            ${item.message}
+                        </div>
+                        <small class="text-muted">${item.time}</small>
+                    </div>
+                </li>
+            `;
+        });
+        
+        activityHtml += `
+            </ul>
+        `;
+        
+        document.getElementById('recent-activity').innerHTML = activityHtml;
+    }
+</script>
+{% endblock %} 

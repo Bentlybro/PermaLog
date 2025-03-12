@@ -1,0 +1,1317 @@
+{% extends "base.html" %}
+
+{% block title %}API Documentation - PermaLog{% endblock %}
+
+{% block content %}
+<div class="container py-4 api-docs">
+    <div class="row">
+        <div class="col-md-3">
+            <!-- Sidebar navigation -->
+            <div class="sticky-top pt-3">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">API Endpoints</h5>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <a href="#introduction" class="list-group-item list-group-item-action">Introduction</a>
+                        <a href="#authentication" class="list-group-item list-group-item-action">Authentication</a>
+                        <a href="#post-log" class="list-group-item list-group-item-action">POST /api/log</a>
+                        <a href="#get-logs" class="list-group-item list-group-item-action">GET /api/logs</a>
+                        <a href="#get-total-logs" class="list-group-item list-group-item-action">GET /api/total-logs</a>
+                        <a href="#verify-log" class="list-group-item list-group-item-action">GET /api/verify/:id</a>
+                        <a href="#verify-chain" class="list-group-item list-group-item-action">GET /api/verify</a>
+                        <a href="#websockets" class="list-group-item list-group-item-action">WebSocket Events</a>
+                        <a href="#export" class="list-group-item list-group-item-action">Export Logs</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <!-- Main content -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">PermaLog API Documentation</h2>
+                </div>
+                <div class="card-body">
+                    <section id="introduction" class="mb-5">
+                        <h3>Introduction</h3>
+                        <p>
+                            The PermaLog API allows you to programmatically interact with the PermaLog system. 
+                            You can add new logs, retrieve existing logs, and verify the integrity of the log chain.
+                        </p>
+                        <p>
+                            All API endpoints are prefixed with <code>/api</code> and return JSON responses.
+                        </p>
+                    </section>
+                    
+                    <section id="authentication" class="mb-5">
+                        <h3>Authentication</h3>
+                        <p>
+                            The PermaLog API uses API keys for authentication. You can create and manage API keys in the <a href="{{ url_for('main.api_keys_page') }}">API Keys</a> section.
+                        </p>
+                        
+                        <h5>Using API Keys</h5>
+                        <p>
+                            There are two ways to include your API key in requests:
+                        </p>
+                        
+                        <h6>1. HTTP Header (Recommended)</h6>
+                        <pre class="bg-light p-3 rounded"><code class="language-http">X-API-Key: your_api_key_here</code></pre>
+                        
+                        <h6>2. Query Parameter</h6>
+                        <pre class="bg-light p-3 rounded"><code class="language-http">GET /api/logs?api_key=your_api_key_here</code></pre>
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <strong>Note:</strong> API keys are not required when accessing the export functionality from the web UI. They are only required when making direct API calls.
+                        </div>
+                        
+                        <h5>Permissions</h5>
+                        <p>
+                            API keys can have one or more of the following permissions:
+                        </p>
+                        <ul>
+                            <li><strong>read</strong> - Allows access to GET endpoints like <code>/api/logs</code> and <code>/api/total-logs</code></li>
+                            <li><strong>write</strong> - Allows access to POST endpoints like <code>/api/log</code></li>
+                            <li><strong>verify</strong> - Allows access to verification endpoints like <code>/api/verify</code></li>
+                        </ul>
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <strong>Tip:</strong> For production use, create separate API keys with minimal permissions for each service or application.
+                        </div>
+                        
+                        <h5>Rate Limiting</h5>
+                        <p>
+                            To protect the API from abuse, rate limiting is enforced. By default, each API key is limited to 100 requests per minute.
+                        </p>
+                        
+                        <p>
+                            The following headers are included in API responses to help you track your rate limit usage:
+                        </p>
+                        
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Header</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>X-RateLimit-Limit</code></td>
+                                    <td>The maximum number of requests allowed in the current time window</td>
+                                </tr>
+                                <tr>
+                                    <td><code>X-RateLimit-Remaining</code></td>
+                                    <td>The number of requests remaining in the current time window</td>
+                                </tr>
+                                <tr>
+                                    <td><code>X-RateLimit-Reset</code></td>
+                                    <td>The time in seconds until the rate limit resets</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <p>
+                            If you exceed the rate limit, you will receive a <code>429 Too Many Requests</code> response with a JSON body explaining the error.
+                        </p>
+                        
+                        <h6>Example Rate Limit Exceeded Response</h6>
+                        <pre class="bg-light p-3 rounded"><code class="language-http">HTTP/1.1 429 Too Many Requests
+Content-Type: application/json
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 30
+
+</code><code class="language-json">{
+  "error": "Rate limit exceeded",
+  "message": "You have exceeded the rate limit of 100 requests per 60 seconds",
+  "reset_in": 30
+}</code></pre>
+                    </section>
+                    
+                    <section id="post-log" class="mb-5">
+                        <h3>POST /api/log</h3>
+                        <p>Add a new log entry to the system.</p>
+                        
+                        <h5>Request</h5>
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Type</th>
+                                    <th>Required</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>level</code></td>
+                                    <td>String</td>
+                                    <td>Yes</td>
+                                    <td>Log level (e.g., "info", "warning", "error", "debug")</td>
+                                </tr>
+                                <tr>
+                                    <td><code>message</code></td>
+                                    <td>String</td>
+                                    <td>Yes</td>
+                                    <td>The log message content</td>
+                                </tr>
+                                <tr>
+                                    <td><code>source</code></td>
+                                    <td>String</td>
+                                    <td>No</td>
+                                    <td>The source of the log (e.g., "auth-service", "payment-processor")</td>
+                                </tr>
+                                <tr>
+                                    <td><code>metadata</code></td>
+                                    <td>Object</td>
+                                    <td>No</td>
+                                    <td>Additional structured data related to the log</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <h5>Example Request</h5>
+                        <pre class="bg-light p-3 rounded"><code class="language-http">POST /api/log
+Content-Type: application/json
+
+{
+  "level": "info",
+  "message": "User logged in",
+  "source": "auth-service",
+  "metadata": {
+    "user_id": 123,
+    "ip": "192.168.1.1"
+  }
+}</code></pre>
+
+                        <h5>Example Response</h5>
+                        <pre class="bg-light p-3 rounded"><code class="language-http">HTTP/1.1 201 Created
+Content-Type: application/json
+
+</code><code class="language-json">{
+  "id": 42,
+  "level": "info",
+  "message": "User logged in",
+  "source": "auth-service",
+  "metadata": {
+    "user_id": 123,
+    "ip": "192.168.1.1"
+  },
+  "timestamp": "2023-06-15T14:22:31.456Z",
+  "hash": "8f7d88e901a5ad3a05d8cc0de93313fd76028f8c0c7ce0bfc8f299e426a9e7a9",
+  "prev_hash": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
+}</code></pre>
+
+                        <h5>Code Examples</h5>
+                        <div class="code-examples">
+                            <ul class="nav nav-tabs mb-3" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="curl-tab-log" data-bs-toggle="tab" data-bs-target="#curl-log" type="button" role="tab" aria-controls="curl-log" aria-selected="true">cURL</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="python-tab-log" data-bs-toggle="tab" data-bs-target="#python-log" type="button" role="tab" aria-controls="python-log" aria-selected="false">Python</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="javascript-tab-log" data-bs-toggle="tab" data-bs-target="#javascript-log" type="button" role="tab" aria-controls="javascript-log" aria-selected="false">JavaScript</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="go-tab-log" data-bs-toggle="tab" data-bs-target="#go-log" type="button" role="tab" aria-controls="go-log" aria-selected="false">Go</button>
+                                </li>
+                            </ul>
+                            <div class="tab-content">
+                                <div class="tab-pane fade show active" id="curl-log" role="tabpanel" aria-labelledby="curl-tab-log">
+                                    <pre class="bg-light p-3 rounded"><code class="language-bash">curl -X POST "http://your-permalog-server/api/log" \
+     -H "Content-Type: application/json" \
+     -H "X-API-Key: your_api_key_here" \
+     -d '{
+       "level": "info",
+       "message": "User logged in",
+       "source": "auth-service",
+       "metadata": {
+         "user_id": 123,
+         "ip": "192.168.1.1"
+       }
+     }'</code></pre>
+                                </div>
+                                <div class="tab-pane fade" id="python-log" role="tabpanel" aria-labelledby="python-tab-log">
+                                    <pre class="bg-light p-3 rounded"><code class="language-python">import requests
+import json
+
+url = "http://your-permalog-server/api/log"
+headers = {
+    "Content-Type": "application/json",
+    "X-API-Key": "your_api_key_here"
+}
+data = {
+    "level": "info",
+    "message": "User logged in",
+    "source": "auth-service",
+    "metadata": {
+        "user_id": 123,
+        "ip": "192.168.1.1"
+    }
+}
+
+response = requests.post(url, headers=headers, json=data)
+print(response.status_code)  # Should be 201
+print(json.dumps(response.json(), indent=2))</code></pre>
+                                </div>
+                                <div class="tab-pane fade" id="javascript-log" role="tabpanel" aria-labelledby="javascript-tab-log">
+                                    <pre class="bg-light p-3 rounded"><code class="language-javascript">// Using fetch API
+const url = 'http://your-permalog-server/api/log';
+const data = {
+  level: 'info',
+  message: 'User logged in',
+  source: 'auth-service',
+  metadata: {
+    user_id: 123,
+    ip: '192.168.1.1'
+  }
+};
+
+fetch(url, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-Key': 'your_api_key_here'
+  },
+  body: JSON.stringify(data)
+})
+.then(response => response.json())
+.then(data => console.log(data))
+.catch(error => console.error('Error:', error));</code></pre>
+                                </div>
+                                <div class="tab-pane fade" id="go-log" role="tabpanel" aria-labelledby="go-tab-log">
+                                    <pre class="bg-light p-3 rounded"><code class="language-go">package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+)
+
+func main() {
+	url := "http://your-permalog-server/api/log"
+	
+	// Create the request body
+	metadata := map[string]interface{}{
+		"user_id": 123,
+		"ip":      "192.168.1.1",
+	}
+	
+	data := map[string]interface{}{
+		"level":    "info",
+		"message":  "User logged in",
+		"source":   "auth-service",
+		"metadata": metadata,
+	}
+	
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("Error marshaling JSON:", err)
+		return
+	}
+	
+	// Create the request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		fmt.Println("Error creating request:", err)
+		return
+	}
+	
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", "your_api_key_here")
+	
+	// Send the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error sending request:", err)
+		return
+	}
+	defer resp.Body.Close()
+	
+	// Read the response
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error reading response:", err)
+		return
+	}
+	
+	fmt.Println("Status:", resp.Status)
+	fmt.Println("Response:", string(body))
+}</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <section id="get-logs" class="mb-5">
+                        <h3>GET /api/logs</h3>
+                        <p>Retrieve logs with optional filtering.</p>
+                        
+                        <h5>Query Parameters</h5>
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Type</th>
+                                    <th>Required</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>level</code></td>
+                                    <td>String</td>
+                                    <td>No</td>
+                                    <td>Filter logs by level</td>
+                                </tr>
+                                <tr>
+                                    <td><code>source</code></td>
+                                    <td>String</td>
+                                    <td>No</td>
+                                    <td>Filter logs by source</td>
+                                </tr>
+                                <tr>
+                                    <td><code>start_time</code></td>
+                                    <td>ISO DateTime</td>
+                                    <td>No</td>
+                                    <td>Filter logs created after this time</td>
+                                </tr>
+                                <tr>
+                                    <td><code>end_time</code></td>
+                                    <td>ISO DateTime</td>
+                                    <td>No</td>
+                                    <td>Filter logs created before this time</td>
+                                </tr>
+                                <tr>
+                                    <td><code>limit</code></td>
+                                    <td>Integer</td>
+                                    <td>No</td>
+                                    <td>Maximum number of logs to return (default: 100)</td>
+                                </tr>
+                                <tr>
+                                    <td><code>offset</code></td>
+                                    <td>Integer</td>
+                                    <td>No</td>
+                                    <td>Number of logs to skip (default: 0)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <h5>Example Request</h5>
+                        <pre class="bg-light p-3 rounded"><code class="language-http">GET /api/logs?level=error&source=payment-service&limit=10</code></pre>
+
+                        <h5>Example Response</h5>
+                        <pre class="bg-light p-3 rounded"><code class="language-http">HTTP/1.1 200 OK
+Content-Type: application/json
+
+</code><code class="language-json">[
+  {
+    "id": 42,
+    "level": "error",
+    "message": "Payment processing failed",
+    "source": "payment-service",
+    "metadata": {
+      "transaction_id": "tx_123456",
+      "error_code": "INSUFFICIENT_FUNDS"
+    },
+    "timestamp": "2023-06-15T14:22:31.456Z",
+    "hash": "8f7d88e901a5ad3a05d8cc0de93313fd76028f8c0c7ce0bfc8f299e426a9e7a9",
+    "prev_hash": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
+  },
+  // More logs...
+]</code></pre>
+
+                        <h5>Code Examples</h5>
+                        <div class="code-examples">
+                            <ul class="nav nav-tabs mb-3" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="curl-tab-get-logs" data-bs-toggle="tab" data-bs-target="#curl-get-logs" type="button" role="tab" aria-controls="curl-get-logs" aria-selected="true">cURL</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="python-tab-get-logs" data-bs-toggle="tab" data-bs-target="#python-get-logs" type="button" role="tab" aria-controls="python-get-logs" aria-selected="false">Python</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="javascript-tab-get-logs" data-bs-toggle="tab" data-bs-target="#javascript-get-logs" type="button" role="tab" aria-controls="javascript-get-logs" aria-selected="false">JavaScript</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="go-tab-get-logs" data-bs-toggle="tab" data-bs-target="#go-get-logs" type="button" role="tab" aria-controls="go-get-logs" aria-selected="false">Go</button>
+                                </li>
+                            </ul>
+                            <div class="tab-content">
+                                <div class="tab-pane fade show active" id="curl-get-logs" role="tabpanel" aria-labelledby="curl-tab-get-logs">
+                                    <pre class="bg-light p-3 rounded"><code class="language-bash">curl "http://your-permalog-server/api/logs?level=error&source=payment-service&limit=10"</code></pre>
+                                </div>
+                                <div class="tab-pane fade" id="python-get-logs" role="tabpanel" aria-labelledby="python-tab-get-logs">
+                                    <pre class="bg-light p-3 rounded"><code class="language-python">import requests
+import json
+
+url = "http://your-permalog-server/api/logs"
+params = {
+    "level": "error",
+    "source": "payment-service",
+    "limit": 10,
+    # Optional parameters
+    # "offset": 0,
+    # "start_time": "2023-06-15T00:00:00Z",
+    # "end_time": "2023-06-16T00:00:00Z"
+}
+
+response = requests.get(url, params=params)
+print(response.status_code)  # Should be 200
+logs = response.json()
+
+# Process the logs
+for log in logs:
+    print(f"Log ID: {log['id']}")
+    print(f"Message: {log['message']}")
+    print(f"Level: {log['level']}")
+    print(f"Source: {log['source']}")
+    print(f"Timestamp: {log['timestamp']}")
+    print("---")</code></pre>
+                                </div>
+                                <div class="tab-pane fade" id="javascript-get-logs" role="tabpanel" aria-labelledby="javascript-tab-get-logs">
+                                    <pre class="bg-light p-3 rounded"><code class="language-javascript">// Using fetch API
+const baseUrl = 'http://your-permalog-server/api/logs';
+
+// Build query parameters
+const params = new URLSearchParams({
+  level: 'error',
+  source: 'payment-service',
+  limit: 10
+  // Optional parameters
+  // offset: 0,
+  // start_time: '2023-06-15T00:00:00Z',
+  // end_time: '2023-06-16T00:00:00Z'
+});
+
+fetch(`${baseUrl}?${params.toString()}`)
+  .then(response => response.json())
+  .then(logs => {
+    console.log(`Retrieved ${logs.length} logs`);
+    
+    // Process the logs
+    logs.forEach(log => {
+      console.log(`Log ID: ${log.id}`);
+      console.log(`Message: ${log.message}`);
+      console.log(`Level: ${log.level}`);
+      console.log(`Source: ${log.source}`);
+      console.log(`Timestamp: ${log.timestamp}`);
+      console.log('---');
+    });
+  })
+  .catch(error => console.error('Error:', error));</code></pre>
+                                </div>
+                                <div class="tab-pane fade" id="go-get-logs" role="tabpanel" aria-labelledby="go-tab-get-logs">
+                                    <pre class="bg-light p-3 rounded"><code class="language-go">package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+)
+
+type Log struct {
+	ID        int                    `json:"id"`
+	Level     string                 `json:"level"`
+	Message   string                 `json:"message"`
+	Source    string                 `json:"source"`
+	Metadata  map[string]interface{} `json:"metadata"`
+	Timestamp string                 `json:"timestamp"`
+	Hash      string                 `json:"hash"`
+	PrevHash  string                 `json:"prev_hash"`
+}
+
+func main() {
+	baseURL := "http://your-permalog-server/api/logs"
+	
+	// Build query parameters
+	params := url.Values{}
+	params.Add("level", "error")
+	params.Add("source", "payment-service")
+	params.Add("limit", "10")
+	// Optional parameters
+	// params.Add("offset", "0")
+	// params.Add("start_time", "2023-06-15T00:00:00Z")
+	// params.Add("end_time", "2023-06-16T00:00:00Z")
+	
+	// Create the request
+	req, err := http.NewRequest("GET", baseURL, nil)
+	if err != nil {
+		fmt.Println("Error creating request:", err)
+		return
+	}
+	
+	req.URL.RawQuery = params.Encode()
+	
+	// Send the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error sending request:", err)
+		return
+	}
+	defer resp.Body.Close()
+	
+	// Read the response
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error reading response:", err)
+		return
+	}
+	
+	// Parse the logs
+	var logs []Log
+	err = json.Unmarshal(body, &logs)
+	if err != nil {
+		fmt.Println("Error parsing JSON:", err)
+		return
+	}
+	
+	fmt.Printf("Retrieved %d logs\n", len(logs))
+	
+	// Process the logs
+	for _, log := range logs {
+		fmt.Printf("Log ID: %d\n", log.ID)
+		fmt.Printf("Message: %s\n", log.Message)
+		fmt.Printf("Level: %s\n", log.Level)
+		fmt.Printf("Source: %s\n", log.Source)
+		fmt.Printf("Timestamp: %s\n", log.Timestamp)
+		fmt.Println("---")
+	}
+}</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <section id="get-total-logs" class="mb-5">
+                        <h3>GET /api/total-logs</h3>
+                        <p>Get the total number of logs with optional filtering.</p>
+                        
+                        <h5>Query Parameters</h5>
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Type</th>
+                                    <th>Required</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>level</code></td>
+                                    <td>String</td>
+                                    <td>No</td>
+                                    <td>Filter logs by level</td>
+                                </tr>
+                                <tr>
+                                    <td><code>source</code></td>
+                                    <td>String</td>
+                                    <td>No</td>
+                                    <td>Filter logs by source</td>
+                                </tr>
+                                <tr>
+                                    <td><code>start_time</code></td>
+                                    <td>ISO DateTime</td>
+                                    <td>No</td>
+                                    <td>Filter logs created after this time</td>
+                                </tr>
+                                <tr>
+                                    <td><code>end_time</code></td>
+                                    <td>ISO DateTime</td>
+                                    <td>No</td>
+                                    <td>Filter logs created before this time</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <h5>Example Request</h5>
+                        <pre class="bg-light p-3 rounded"><code class="language-http">GET /api/total-logs?level=error</code></pre>
+
+                        <h5>Example Response</h5>
+                        <pre class="bg-light p-3 rounded"><code class="language-http">HTTP/1.1 200 OK
+Content-Type: application/json
+
+</code><code class="language-json">{
+  "total": 42
+}</code></pre>
+                    </section>
+                    
+                    <section id="verify-log" class="mb-5">
+                        <h3>GET /api/verify/:id</h3>
+                        <p>Verify the integrity of a specific log entry.</p>
+                        
+                        <h5>URL Parameters</h5>
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Type</th>
+                                    <th>Required</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>id</code></td>
+                                    <td>Integer</td>
+                                    <td>Yes</td>
+                                    <td>The ID of the log to verify</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <h5>Example Request</h5>
+                        <pre class="bg-light p-3 rounded"><code class="language-http">GET /api/verify/42</code></pre>
+
+                        <h5>Example Response</h5>
+                        <pre class="bg-light p-3 rounded"><code class="language-http">HTTP/1.1 200 OK
+Content-Type: application/json
+
+</code><code class="language-json">{
+  "valid": true,
+  "log_id": 42,
+  "message": "Log integrity verified successfully"
+}</code></pre>
+
+                        <h5>Code Examples</h5>
+                        <div class="code-examples">
+                            <ul class="nav nav-tabs mb-3" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="curl-tab-verify-log" data-bs-toggle="tab" data-bs-target="#curl-verify-log" type="button" role="tab" aria-controls="curl-verify-log" aria-selected="true">cURL</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="python-tab-verify-log" data-bs-toggle="tab" data-bs-target="#python-verify-log" type="button" role="tab" aria-controls="python-verify-log" aria-selected="false">Python</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="javascript-tab-verify-log" data-bs-toggle="tab" data-bs-target="#javascript-verify-log" type="button" role="tab" aria-controls="javascript-verify-log" aria-selected="false">JavaScript</button>
+                                </li>
+                            </ul>
+                            <div class="tab-content">
+                                <div class="tab-pane fade show active" id="curl-verify-log" role="tabpanel" aria-labelledby="curl-tab-verify-log">
+                                    <pre class="bg-light p-3 rounded"><code class="language-bash">curl "http://your-permalog-server/api/verify/42"</code></pre>
+                                </div>
+                                <div class="tab-pane fade" id="python-verify-log" role="tabpanel" aria-labelledby="python-tab-verify-log">
+                                    <pre class="bg-light p-3 rounded"><code class="language-python">import requests
+import json
+
+log_id = 42
+url = f"http://your-permalog-server/api/verify/{log_id}"
+
+response = requests.get(url)
+result = response.json()
+
+if result.get('valid'):
+    print(f"Log {log_id} verified successfully!")
+else:
+    print(f"Log {log_id} verification failed: {result.get('message')}")</code></pre>
+                                </div>
+                                <div class="tab-pane fade" id="javascript-verify-log" role="tabpanel" aria-labelledby="javascript-tab-verify-log">
+                                    <pre class="bg-light p-3 rounded"><code class="language-javascript">// Using fetch API
+const logId = 42;
+const url = `http://your-permalog-server/api/verify/${logId}`;
+
+fetch(url)
+  .then(response => response.json())
+  .then(result => {
+    if (result.valid) {
+      console.log(`Log ${logId} verified successfully!`);
+    } else {
+      console.error(`Log ${logId} verification failed: ${result.message}`);
+    }
+  })
+  .catch(error => console.error('Error:', error));</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <section id="verify-chain" class="mb-5">
+                        <h3>GET /api/verify</h3>
+                        <p>Verify the integrity of the entire log chain or a range of logs.</p>
+                        
+                        <h5>Query Parameters</h5>
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Type</th>
+                                    <th>Required</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>start_id</code></td>
+                                    <td>Integer</td>
+                                    <td>No</td>
+                                    <td>The ID of the first log in the range to verify</td>
+                                </tr>
+                                <tr>
+                                    <td><code>end_id</code></td>
+                                    <td>Integer</td>
+                                    <td>No</td>
+                                    <td>The ID of the last log in the range to verify</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <h5>Example Request</h5>
+                        <pre class="bg-light p-3 rounded"><code class="language-http">GET /api/verify?start_id=10&end_id=50</code></pre>
+
+                        <h5>Example Response</h5>
+                        <pre class="bg-light p-3 rounded"><code class="language-http">HTTP/1.1 200 OK
+Content-Type: application/json
+
+</code><code class="language-json">{
+  "valid": true,
+  "start_id": 10,
+  "end_id": 50,
+  "count": 41,
+  "message": "Log chain integrity verified successfully"
+}</code></pre>
+
+                        <h5>Code Examples</h5>
+                        <div class="code-examples">
+                            <ul class="nav nav-tabs mb-3" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="curl-tab-verify-chain" data-bs-toggle="tab" data-bs-target="#curl-verify-chain" type="button" role="tab" aria-controls="curl-verify-chain" aria-selected="true">cURL</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="python-tab-verify-chain" data-bs-toggle="tab" data-bs-target="#python-verify-chain" type="button" role="tab" aria-controls="python-verify-chain" aria-selected="false">Python</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="javascript-tab-verify-chain" data-bs-toggle="tab" data-bs-target="#javascript-verify-chain" type="button" role="tab" aria-controls="javascript-verify-chain" aria-selected="false">JavaScript</button>
+                                </li>
+                            </ul>
+                            <div class="tab-content">
+                                <div class="tab-pane fade show active" id="curl-verify-chain" role="tabpanel" aria-labelledby="curl-tab-verify-chain">
+                                    <pre class="bg-light p-3 rounded"><code class="language-bash"># Verify entire chain
+curl "http://your-permalog-server/api/verify"
+
+# Verify a range of logs
+curl "http://your-permalog-server/api/verify?start_id=10&end_id=50"</code></pre>
+                                </div>
+                                <div class="tab-pane fade" id="python-verify-chain" role="tabpanel" aria-labelledby="python-tab-verify-chain">
+                                    <pre class="bg-light p-3 rounded"><code class="language-python">import requests
+import json
+
+# Base URL for verification
+base_url = "http://your-permalog-server/api/verify"
+
+# Verify entire chain
+response = requests.get(base_url)
+result = response.json()
+
+if result.get('valid'):
+    print("Entire log chain verified successfully!")
+    print(f"Verified {result.get('count')} logs")
+else:
+    print(f"Chain verification failed: {result.get('message')}")
+
+# Verify a range of logs
+start_id = 10
+end_id = 50
+params = {
+    "start_id": start_id,
+    "end_id": end_id
+}
+
+response = requests.get(base_url, params=params)
+result = response.json()
+
+if result.get('valid'):
+    print(f"Log range {start_id}-{end_id} verified successfully!")
+    print(f"Verified {result.get('count')} logs")
+else:
+    print(f"Range verification failed: {result.get('message')}")</code></pre>
+                                </div>
+                                <div class="tab-pane fade" id="javascript-verify-chain" role="tabpanel" aria-labelledby="javascript-tab-verify-chain">
+                                    <pre class="bg-light p-3 rounded"><code class="language-javascript">// Using fetch API
+const baseUrl = 'http://your-permalog-server/api/verify';
+
+// Verify entire chain
+fetch(baseUrl)
+  .then(response => response.json())
+  .then(result => {
+    if (result.valid) {
+      console.log('Entire log chain verified successfully!');
+      console.log(`Verified ${result.count} logs`);
+    } else {
+      console.error(`Chain verification failed: ${result.message}`);
+    }
+  })
+  .catch(error => console.error('Error:', error));
+
+// Verify a range of logs
+const startId = 10;
+const endId = 50;
+const params = new URLSearchParams({
+  start_id: startId,
+  end_id: endId
+});
+
+fetch(`${baseUrl}?${params.toString()}`)
+  .then(response => response.json())
+  .then(result => {
+    if (result.valid) {
+      console.log(`Log range ${startId}-${endId} verified successfully!`);
+      console.log(`Verified ${result.count} logs`);
+    } else {
+      console.error(`Range verification failed: ${result.message}`);
+    }
+  })
+  .catch(error => console.error('Error:', error));</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <section id="websockets" class="mb-5">
+                        <h3>WebSocket Events</h3>
+                        <p>
+                            PermaLog also provides real-time updates via WebSockets. You can connect to the WebSocket server
+                            to receive notifications about new logs as they are added.
+                        </p>
+                        
+                        <h5>Connection</h5>
+                        <pre class="bg-light p-3 rounded"><code class="language-javascript">const socket = io();</code></pre>
+                        
+                        <h5>Events</h5>
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Event</th>
+                                    <th>Description</th>
+                                    <th>Data</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>connect</code></td>
+                                    <td>Fired when the client successfully connects to the server</td>
+                                    <td>None</td>
+                                </tr>
+                                <tr>
+                                    <td><code>disconnect</code></td>
+                                    <td>Fired when the client disconnects from the server</td>
+                                    <td>None</td>
+                                </tr>
+                                <tr>
+                                    <td><code>new_log</code></td>
+                                    <td>Fired when a new log is added to the system</td>
+                                    <td>The complete log object</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <h5>Example Usage</h5>
+                        <pre class="bg-light p-3 rounded"><code class="language-javascript">// Connect to WebSocket
+const socket = io();
+
+// Handle connection events
+socket.on('connect', function() {
+    console.log('Connected to PermaLog WebSocket');
+});
+
+socket.on('disconnect', function() {
+    console.log('Disconnected from PermaLog WebSocket');
+});
+
+// Handle new log events
+socket.on('new_log', function(log) {
+    console.log('New log received:', log);
+    // Process the new log...
+});</code></pre>
+
+                        <h5>Code Examples</h5>
+                        <div class="code-examples">
+                            <ul class="nav nav-tabs mb-3" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="javascript-tab-websocket" data-bs-toggle="tab" data-bs-target="#javascript-websocket" type="button" role="tab" aria-controls="javascript-websocket" aria-selected="true">JavaScript (Browser)</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="nodejs-tab-websocket" data-bs-toggle="tab" data-bs-target="#nodejs-websocket" type="button" role="tab" aria-controls="nodejs-websocket" aria-selected="false">Node.js</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="python-tab-websocket" data-bs-toggle="tab" data-bs-target="#python-websocket" type="button" role="tab" aria-controls="python-websocket" aria-selected="false">Python</button>
+                                </li>
+                            </ul>
+                            <div class="tab-content">
+                                <div class="tab-pane fade show active" id="javascript-websocket" role="tabpanel" aria-labelledby="javascript-tab-websocket">
+                                    <pre class="bg-light p-3 rounded"><code class="language-html"><!-- Include Socket.IO client library -->
+<script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.6.1/dist/socket.io.min.js"></script>
+
+<script>
+  // Connect to WebSocket server
+  const socket = io('http://your-permalog-server');
+  
+  // Connection status element
+  const statusEl = document.getElementById('connection-status');
+  
+  // Handle connection events
+  socket.on('connect', () => {
+    console.log('Connected to PermaLog WebSocket');
+    statusEl.textContent = 'Connected';
+    statusEl.className = 'status-connected';
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('Disconnected from PermaLog WebSocket');
+    statusEl.textContent = 'Disconnected';
+    statusEl.className = 'status-disconnected';
+  });
+  
+  // Handle new log events
+  socket.on('new_log', (log) => {
+    console.log('New log received:', log);
+    
+    // Example: Add log to UI
+    const logsList = document.getElementById('logs-list');
+    const logItem = document.createElement('div');
+    logItem.className = `log-item log-level-${log.level}`;
+    
+    logItem.innerHTML = `
+      <div class="log-header">
+        <span class="log-level">${log.level}</span>
+        <span class="log-source">${log.source || 'unknown'}</span>
+        <span class="log-time">${new Date(log.timestamp).toLocaleString()}</span>
+      </div>
+      <div class="log-message">${log.message}</div>
+      ${log.metadata ? `<pre class="log-metadata">${JSON.stringify(log.metadata, null, 2)}</pre>` : ''}
+    `;
+    
+    logsList.prepend(logItem);
+  });
+</script></code></pre>
+                                </div>
+                                <div class="tab-pane fade" id="nodejs-websocket" role="tabpanel" aria-labelledby="nodejs-tab-websocket">
+                                    <pre class="bg-light p-3 rounded"><code class="language-javascript">// Node.js WebSocket client
+const { io } = require("socket.io-client");
+
+// Connect to WebSocket server
+const socket = io("http://your-permalog-server");
+
+// Handle connection events
+socket.on("connect", () => {
+  console.log("Connected to PermaLog WebSocket");
+});
+
+socket.on("disconnect", () => {
+  console.log("Disconnected from PermaLog WebSocket");
+});
+
+// Handle new log events
+socket.on("new_log", (log) => {
+  console.log("New log received:");
+  console.log(`ID: ${log.id}`);
+  console.log(`Level: ${log.level}`);
+  console.log(`Message: ${log.message}`);
+  console.log(`Source: ${log.source || 'unknown'}`);
+  console.log(`Timestamp: ${new Date(log.timestamp).toISOString()}`);
+  
+  if (log.metadata) {
+    console.log("Metadata:", log.metadata);
+  }
+  
+  // Example: Store logs in a database
+  // db.insertLog(log);
+  
+  // Example: Forward critical logs to another system
+  if (log.level === 'critical' || log.level === 'error') {
+    // alertSystem.sendAlert(log);
+  }
+});</code></pre>
+                                </div>
+                                <div class="tab-pane fade" id="python-websocket" role="tabpanel" aria-labelledby="python-tab-websocket">
+                                    <pre class="bg-light p-3 rounded"><code class="language-python">import socketio
+import json
+from datetime import datetime
+
+# Create a Socket.IO client
+sio = socketio.Client()
+
+# Define event handlers
+@sio.event
+def connect():
+    print("Connected to PermaLog WebSocket")
+
+@sio.event
+def disconnect():
+    print("Disconnected from PermaLog WebSocket")
+
+@sio.event
+def new_log(log):
+    print("New log received:")
+    print(f"ID: {log.get('id')}")
+    print(f"Level: {log.get('level')}")
+    print(f"Message: {log.get('message')}")
+    print(f"Source: {log.get('source', 'unknown')}")
+    
+    # Format timestamp
+    timestamp = log.get('timestamp')
+    if timestamp:
+        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        print(f"Timestamp: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    # Print metadata if available
+    metadata = log.get('metadata')
+    if metadata:
+        print("Metadata:")
+        print(json.dumps(metadata, indent=2))
+    
+    # Example: Store logs in a database
+    # db.insert_log(log)
+    
+    # Example: Forward critical logs to another system
+    if log.get('level') in ['critical', 'error']:
+        # alert_system.send_alert(log)
+        pass
+
+# Connect to the server
+try:
+    sio.connect('http://your-permalog-server')
+    
+    # Keep the client running (you might want to handle this differently)
+    sio.wait()
+except Exception as e:
+    print(f"Error connecting to WebSocket server: {e}")
+finally:
+    # Ensure we disconnect properly
+    if sio.connected:
+        sio.disconnect()</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <section id="export" class="mb-5">
+                        <h3>Export Logs</h3>
+                        <p>Export logs in JSON or CSV format.</p>
+                        
+                        <div class="endpoint-details">
+                            <div class="method get">GET</div>
+                            <div class="path">/api/export</div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <strong>Note:</strong> API keys are not required when accessing this endpoint from the web UI. They are only required when making direct API calls.
+                        </div>
+                        
+                        <h5>Query Parameters</h5>
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Type</th>
+                                    <th>Required</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>format</td>
+                                    <td>string</td>
+                                    <td>Yes</td>
+                                    <td>Format of the export. Valid values: <code>json</code>, <code>csv</code></td>
+                                </tr>
+                                <tr>
+                                    <td>start_date</td>
+                                    <td>string</td>
+                                    <td>No</td>
+                                    <td>Filter logs starting from this date (YYYY-MM-DD)</td>
+                                </tr>
+                                <tr>
+                                    <td>end_date</td>
+                                    <td>string</td>
+                                    <td>No</td>
+                                    <td>Filter logs until this date (YYYY-MM-DD)</td>
+                                </tr>
+                                <tr>
+                                    <td>source</td>
+                                    <td>string</td>
+                                    <td>No</td>
+                                    <td>Filter logs by source</td>
+                                </tr>
+                                <tr>
+                                    <td>level</td>
+                                    <td>string</td>
+                                    <td>No</td>
+                                    <td>Filter logs by level (info, warning, error, etc.)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <h5>Example Requests</h5>
+                        
+                        <div class="code-tabs">
+                            <ul class="nav nav-tabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="export-curl-tab" data-bs-toggle="tab" data-bs-target="#export-curl" type="button" role="tab" aria-controls="export-curl" aria-selected="true">cURL</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="export-python-tab" data-bs-toggle="tab" data-bs-target="#export-python" type="button" role="tab" aria-controls="export-python" aria-selected="false">Python</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="export-js-tab" data-bs-toggle="tab" data-bs-target="#export-js" type="button" role="tab" aria-controls="export-js" aria-selected="false">JavaScript</button>
+                                </li>
+                            </ul>
+                            <div class="tab-content">
+                                <div class="tab-pane fade show active" id="export-curl" role="tabpanel" aria-labelledby="export-curl-tab">
+                                    <pre class="bg-light p-3 rounded"><code class="language-bash">curl -X GET "https://api.permalog.io/api/export?format=json&start_date=2023-01-01&end_date=2023-01-31&level=error" \
+    -H "X-API-Key: your_api_key_here"</code></pre>
+                                </div>
+                                <div class="tab-pane fade" id="export-python" role="tabpanel" aria-labelledby="export-python-tab">
+                                    <pre class="bg-light p-3 rounded"><code class="language-python">import requests
+
+url = "https://api.permalog.io/api/export"
+headers = {
+    "X-API-Key": "your_api_key_here"
+}
+params = {
+    "format": "json",
+    "start_date": "2023-01-01",
+    "end_date": "2023-01-31",
+    "level": "error"
+}
+
+response = requests.get(url, headers=headers, params=params)
+
+if response.status_code == 200:
+    logs = response.json()
+    print(f"Exported {len(logs)} logs")
+    # Process the logs as needed
+else:
+    print(f"Error: {response.status_code}")
+    print(response.text)</code></pre>
+                                </div>
+                                <div class="tab-pane fade" id="export-js" role="tabpanel" aria-labelledby="export-js-tab">
+                                    <pre class="bg-light p-3 rounded"><code class="language-javascript">const fetchLogs = async () => {
+  const url = new URL('https://api.permalog.io/api/export');
+  
+  // Add query parameters
+  url.searchParams.append('format', 'json');
+  url.searchParams.append('start_date', '2023-01-01');
+  url.searchParams.append('end_date', '2023-01-31');
+  url.searchParams.append('level', 'error');
+  
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-API-Key': 'your_api_key_here'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    
+    const logs = await response.json();
+    console.log(`Exported ${logs.length} logs`);
+    // Process the logs as needed
+    
+  } catch (error) {
+    console.error('Error exporting logs:', error);
+  }
+};
+
+fetchLogs();</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <h5>Example Response (JSON)</h5>
+                        <pre class="bg-light p-3 rounded"><code class="language-json">[
+  {
+    "id": "log_01H9XYZ123ABC",
+    "timestamp": "2023-01-15T14:32:45Z",
+    "source": "payment-service",
+    "level": "error",
+    "message": "Failed to process payment for order #12345",
+    "metadata": {
+      "order_id": "12345",
+      "customer_id": "cust_987",
+      "amount": 99.99
+    },
+    "hash": "8f7d88e5c9f0e4a3b2c1d0e9f8a7b6c5d4e3f2a1",
+    "previous_hash": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b"
+  },
+  {
+    "id": "log_01H9XYZ456DEF",
+    "timestamp": "2023-01-16T09:12:33Z",
+    "source": "payment-service",
+    "level": "error",
+    "message": "Payment gateway timeout for order #67890",
+    "metadata": {
+      "order_id": "67890",
+      "customer_id": "cust_654",
+      "amount": 149.99
+    },
+    "hash": "7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d",
+    "previous_hash": "8f7d88e5c9f0e4a3b2c1d0e9f8a7b6c5d4e3f2a1"
+  }
+]</code></pre>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Manually trigger Prism.js highlighting
+        if (typeof Prism !== 'undefined') {
+            Prism.highlightAll();
+        }
+        
+        // Add copy functionality to code blocks
+        document.querySelectorAll('.api-docs pre.bg-light').forEach(function(block) {
+            block.addEventListener('click', function(e) {
+                // Check if the click was on the pseudo-element (copy button)
+                const rect = block.getBoundingClientRect();
+                const isClickOnButton = 
+                    e.clientX > rect.right - 60 && 
+                    e.clientX < rect.right - 5 && 
+                    e.clientY > rect.top + 5 && 
+                    e.clientY < rect.top + 30;
+                
+                if (isClickOnButton) {
+                    // Get all code content
+                    const codeContent = Array.from(block.querySelectorAll('code'))
+                        .map(code => code.textContent)
+                        .join('');
+                    
+                    // Copy to clipboard
+                    navigator.clipboard.writeText(codeContent).then(function() {
+                        // Show feedback
+                        const originalContent = block.getAttribute('data-after-content') || 'Copy';
+                        block.style.setProperty('--after-content', '"Copied!"');
+                        
+                        // Reset after 2 seconds
+                        setTimeout(function() {
+                            block.style.setProperty('--after-content', `"${originalContent}"`);
+                        }, 2000);
+                    });
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

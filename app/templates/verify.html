@@ -1,0 +1,504 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Logs - PermaLog{% endblock %}
+
+{% block content %}
+<div class="row mb-4 verify-page">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex align-items-center">
+                <i class="bi bi-shield-check me-2 fs-4"></i>
+                <h4 class="mb-0">Log Verification</h4>
+            </div>
+            <div class="card-body">
+                <p class="lead">Verify the integrity of individual logs or the entire log chain to ensure your data hasn't been tampered with.</p>
+                
+                <ul class="nav nav-tabs" id="verifyTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active d-flex align-items-center" id="single-tab" data-bs-toggle="tab" data-bs-target="#single" type="button" role="tab" aria-controls="single" aria-selected="true">
+                            <i class="bi bi-file-earmark-check me-2"></i>Verify Single Log
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link d-flex align-items-center" id="chain-tab" data-bs-toggle="tab" data-bs-target="#chain" type="button" role="tab" aria-controls="chain" aria-selected="false">
+                            <i class="bi bi-link-45deg me-2"></i>Verify Log Chain
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content p-4 border border-top-0 rounded-bottom" id="verifyTabsContent">
+                    <!-- Single Log Verification -->
+                    <div class="tab-pane fade show active" id="single" role="tabpanel" aria-labelledby="single-tab">
+                        <div class="row">
+                            <div class="col-md-7">
+                                <form id="verify-single-form" class="row g-3">
+                                    <div class="col-md-8">
+                                        <label for="log-id" class="form-label">Log ID</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-hash"></i></span>
+                                            <input type="number" class="form-control" id="log-id" min="1" required placeholder="Enter log ID to verify">
+                                        </div>
+                                    </div>
+                                    <div class="col-12 mt-4">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-shield-check me-2"></i>Verify Log
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="col-md-5 d-flex align-items-center justify-content-center">
+                                <div class="text-center p-4">
+                                    <i class="bi bi-shield-lock fs-1 text-primary mb-3"></i>
+                                    <p class="mb-0">Enter a log ID to verify its integrity and ensure it hasn't been tampered with.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="single-result" class="mt-4" style="display: none;">
+                            <!-- Results will be displayed here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Chain Verification -->
+                    <div class="tab-pane fade" id="chain" role="tabpanel" aria-labelledby="chain-tab">
+                        <div class="row">
+                            <div class="col-md-7">
+                                <form id="verify-chain-form" class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="start-id" class="form-label">Start ID (Optional)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-box-arrow-in-up-right"></i></span>
+                                            <input type="number" class="form-control" id="start-id" min="1" placeholder="First log ID">
+                                        </div>
+                                        <div class="form-text">Leave empty to start from the first log</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="end-id" class="form-label">End ID (Optional)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-box-arrow-in-down-left"></i></span>
+                                            <input type="number" class="form-control" id="end-id" min="1" placeholder="Last log ID">
+                                        </div>
+                                        <div class="form-text">Leave empty to end at the last log</div>
+                                    </div>
+                                    <div class="col-12 mt-4">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-link-45deg me-2"></i>Verify Chain
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="col-md-5 d-flex align-items-center justify-content-center">
+                                <div class="text-center p-4">
+                                    <i class="bi bi-link-45deg fs-1 text-primary mb-3"></i>
+                                    <p class="mb-0">Verify a range of logs to ensure the entire chain is intact and secure.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="chain-result" class="mt-4" style="display: none;">
+                            <!-- Results will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row verify-page">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-info text-white d-flex align-items-center">
+                <i class="bi bi-info-circle me-2 fs-5"></i>
+                <h5 class="mb-0">How Log Verification Works</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-start mb-3">
+                            <div class="bg-primary rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                <i class="bi bi-file-earmark-check text-white"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-2">Single Log Verification</h6>
+                                <p class="mb-3">When verifying a single log, PermaLog checks:</p>
+                                <ol class="ps-3">
+                                    <li>The log's hash matches its content</li>
+                                    <li>The log's previous hash matches the hash of the previous log</li>
+                                </ol>
+                                <p>This ensures the log hasn't been tampered with and is properly linked to the chain.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-start mb-3">
+                            <div class="bg-primary rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                <i class="bi bi-link-45deg text-white"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-2">Chain Verification</h6>
+                                <p class="mb-3">When verifying the log chain, PermaLog:</p>
+                                <ol class="ps-3">
+                                    <li>Checks each log's hash against its content</li>
+                                    <li>Verifies each log's previous hash matches the hash of the previous log</li>
+                                    <li>Ensures the chain is unbroken from start to end</li>
+                                </ol>
+                                <p>This confirms the entire log history is intact and unmodified.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3 d-flex align-items-start">
+                    <i class="bi bi-lightbulb-fill fs-4 me-3 mt-1"></i>
+                    <div>
+                        <h6 class="alert-heading">How Hash Chaining Works</h6>
+                        <p class="mb-0">Each log entry contains a hash of its own content plus the hash of the previous log. This creates an unbreakable chain where modifying any log would break the chain and be immediately detectable.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check if there's a log_id in the URL query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const logId = urlParams.get('log_id');
+        
+        if (logId) {
+            // Set the log ID in the form and trigger verification
+            document.getElementById('log-id').value = logId;
+            document.getElementById('verify-single-form').dispatchEvent(new Event('submit'));
+        }
+        
+        // Single Log Verification
+        const verifySingleForm = document.getElementById('verify-single-form');
+        const singleResult = document.getElementById('single-result');
+        
+        verifySingleForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const logId = document.getElementById('log-id').value;
+            
+            // Show loading indicator
+            singleResult.innerHTML = `
+                <div class="card border-primary">
+                    <div class="card-body text-center p-4">
+                        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mb-0 lead">Verifying log #${logId}...</p>
+                    </div>
+                </div>
+            `;
+            singleResult.style.display = 'block';
+            
+            // Call the API to verify the log
+            fetch(`/api/verify/${logId}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.verified) {
+                        singleResult.innerHTML = `
+                            <div class="card border-success">
+                                <div class="card-header bg-success text-white">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-check-circle-fill me-2 fs-4"></i>
+                                        <h5 class="mb-0">Verification Successful</h5>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="text-center mb-4">
+                                        <i class="bi bi-shield-check text-success" style="font-size: 4rem;"></i>
+                                    </div>
+                                    <h6 class="card-title">Log #${result.log_id} has been verified and its integrity is intact.</h6>
+                                    <p class="card-text">This log is properly linked in the blockchain and has not been tampered with.</p>
+                                    <div class="d-flex justify-content-center mt-3">
+                                        <a href="/logs?id=${result.log_id}" class="btn btn-outline-primary">
+                                            <i class="bi bi-eye me-1"></i>View Log Details
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        let errorDetails = '';
+                        let errorIcon = 'bi-exclamation-triangle-fill';
+                        
+                        if (result.error === 'Log entry not found') {
+                            errorDetails = `
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-question-circle me-2"></i>
+                                    Log #${logId} was not found in the database.
+                                </div>
+                            `;
+                            errorIcon = 'bi-question-circle-fill';
+                        } else if (result.error === 'Hash mismatch') {
+                            errorDetails = `
+                                <div class="alert alert-danger">
+                                    <p><i class="bi bi-x-circle me-2"></i>The stored hash does not match the calculated hash for this log.</p>
+                                </div>
+                                <div class="card mb-3">
+                                    <div class="card-header">Hash Comparison</div>
+                                    <div class="card-body">
+                                        <div class="row mb-2">
+                                            <div class="col-md-4 text-muted">Stored Hash:</div>
+                                            <div class="col-md-8">
+                                                <code class="text-danger">${result.stored_hash}</code>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-4 text-muted">Calculated Hash:</div>
+                                            <div class="col-md-8">
+                                                <code class="text-success">${result.calculated_hash}</code>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="text-danger"><i class="bi bi-exclamation-triangle me-2"></i>This indicates the log content has been tampered with.</p>
+                            `;
+                        } else if (result.error === 'Previous hash mismatch') {
+                            errorDetails = `
+                                <div class="alert alert-danger">
+                                    <p><i class="bi bi-x-circle me-2"></i>The previous hash reference is incorrect.</p>
+                                </div>
+                                <div class="card mb-3">
+                                    <div class="card-header">Previous Hash Comparison</div>
+                                    <div class="card-body">
+                                        <div class="row mb-2">
+                                            <div class="col-md-4 text-muted">Stored Previous Hash:</div>
+                                            <div class="col-md-8">
+                                                <code class="text-danger">${result.stored_prev_hash}</code>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-4 text-muted">Actual Previous Hash:</div>
+                                            <div class="col-md-8">
+                                                <code class="text-success">${result.actual_prev_hash}</code>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="text-danger"><i class="bi bi-exclamation-triangle me-2"></i>This indicates the log chain has been broken.</p>
+                            `;
+                        } else {
+                            errorDetails = `
+                                <div class="alert alert-danger">
+                                    <i class="bi bi-x-circle me-2"></i>
+                                    Error: ${result.error}
+                                </div>
+                            `;
+                        }
+                        
+                        singleResult.innerHTML = `
+                            <div class="card border-danger">
+                                <div class="card-header bg-danger text-white">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi ${errorIcon} me-2 fs-4"></i>
+                                        <h5 class="mb-0">Verification Failed</h5>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    ${errorDetails}
+                                </div>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    singleResult.innerHTML = `
+                        <div class="card border-danger">
+                            <div class="card-header bg-danger text-white">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
+                                    <h5 class="mb-0">Error</h5>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p>An error occurred during verification: ${error.message}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+        });
+        
+        // Chain Verification
+        const verifyChainForm = document.getElementById('verify-chain-form');
+        const chainResult = document.getElementById('chain-result');
+        
+        verifyChainForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const startId = document.getElementById('start-id').value || null;
+            const endId = document.getElementById('end-id').value || null;
+            
+            // Build the query string
+            let queryString = '/api/verify';
+            const params = [];
+            
+            if (startId) params.push(`start_id=${startId}`);
+            if (endId) params.push(`end_id=${endId}`);
+            
+            if (params.length > 0) {
+                queryString += '?' + params.join('&');
+            }
+            
+            // Show loading indicator
+            chainResult.innerHTML = `
+                <div class="card border-primary">
+                    <div class="card-body text-center p-4">
+                        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mb-0 lead">Verifying log chain...</p>
+                        <small class="text-muted">This may take a moment for large chains</small>
+                    </div>
+                </div>
+            `;
+            chainResult.style.display = 'block';
+            
+            // Call the API to verify the chain
+            fetch(queryString)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.verified) {
+                        chainResult.innerHTML = `
+                            <div class="card border-success">
+                                <div class="card-header bg-success text-white">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-check-circle-fill me-2 fs-4"></i>
+                                        <h5 class="mb-0">Chain Verification Successful</h5>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="text-center mb-4">
+                                        <i class="bi bi-shield-check text-success" style="font-size: 4rem;"></i>
+                                    </div>
+                                    <h6 class="card-title">All ${result.count} logs from #${result.start_id} to #${result.end_id} have been verified.</h6>
+                                    <p class="card-text">The log chain is intact and has not been tampered with.</p>
+                                    <div class="d-flex justify-content-center mt-3">
+                                        <a href="/logs" class="btn btn-outline-primary">
+                                            <i class="bi bi-eye me-1"></i>View All Logs
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        let errorDetails = '';
+                        let errorIcon = 'bi-exclamation-triangle-fill';
+                        
+                        if (result.error === 'No logs found in the specified range') {
+                            errorDetails = `
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-question-circle me-2"></i>
+                                    No logs were found in the specified range.
+                                </div>
+                            `;
+                            errorIcon = 'bi-question-circle-fill';
+                        } else if (result.error.includes('Hash mismatch')) {
+                            errorDetails = `
+                                <div class="alert alert-danger">
+                                    <p><i class="bi bi-x-circle me-2"></i>${result.error}</p>
+                                </div>
+                                <div class="card mb-3">
+                                    <div class="card-header">Problem Details</div>
+                                    <div class="card-body">
+                                        <div class="row mb-2">
+                                            <div class="col-md-4 text-muted">Log ID:</div>
+                                            <div class="col-md-8">
+                                                <span class="badge bg-danger">#${result.log_id}</span>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-md-4 text-muted">Stored Hash:</div>
+                                            <div class="col-md-8">
+                                                <code class="text-danger">${result.stored_hash}</code>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-4 text-muted">Calculated Hash:</div>
+                                            <div class="col-md-8">
+                                                <code class="text-success">${result.calculated_hash}</code>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="text-danger"><i class="bi bi-exclamation-triangle me-2"></i>This indicates a log has been tampered with.</p>
+                            `;
+                        } else if (result.error.includes('Chain broken')) {
+                            errorDetails = `
+                                <div class="alert alert-danger">
+                                    <p><i class="bi bi-x-circle me-2"></i>${result.error}</p>
+                                </div>
+                                <div class="card mb-3">
+                                    <div class="card-header">Problem Details</div>
+                                    <div class="card-body">
+                                        <div class="row mb-2">
+                                            <div class="col-md-4 text-muted">Log ID:</div>
+                                            <div class="col-md-8">
+                                                <span class="badge bg-danger">#${result.log_id}</span>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-md-4 text-muted">Stored Previous Hash:</div>
+                                            <div class="col-md-8">
+                                                <code class="text-danger">${result.stored_prev_hash}</code>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-4 text-muted">Expected Previous Hash:</div>
+                                            <div class="col-md-8">
+                                                <code class="text-success">${result.expected_prev_hash}</code>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="text-danger"><i class="bi bi-exclamation-triangle me-2"></i>This indicates the log chain has been broken.</p>
+                            `;
+                        } else {
+                            errorDetails = `
+                                <div class="alert alert-danger">
+                                    <i class="bi bi-x-circle me-2"></i>
+                                    Error: ${result.error}
+                                </div>
+                            `;
+                        }
+                        
+                        chainResult.innerHTML = `
+                            <div class="card border-danger">
+                                <div class="card-header bg-danger text-white">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi ${errorIcon} me-2 fs-4"></i>
+                                        <h5 class="mb-0">Chain Verification Failed</h5>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    ${errorDetails}
+                                </div>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    chainResult.innerHTML = `
+                        <div class="card border-danger">
+                            <div class="card-header bg-danger text-white">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
+                                    <h5 class="mb-0">Error</h5>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p>An error occurred during verification: ${error.message}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+        });
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - PermaLog{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">PermaLog Dashboard</h4>
+            </div>
+            <div class="card-body">
+                <p class="lead">Welcome to PermaLog, an immutable logging service that securely records logs while preventing modification.</p>
+                <div class="row mt-4 feature-cards">
+                    <div class="col-md-4">
+                        <div class="card text-center mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Immutable Logs</h5>
+                                <p class="card-text">Logs cannot be modified or deleted once recorded.</p>
+                                <a href="{{ url_for('main.logs_page') }}" class="btn btn-primary">View Logs</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Tamper Detection</h5>
+                                <p class="card-text">SHA-256 hash chaining ensures log integrity.</p>
+                                <a href="{{ url_for('main.verify_page') }}" class="btn btn-primary">Verify Logs</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">API Access</h5>
+                                <p class="card-text">Simple API for logging and verification.</p>
+                                <a href="{{ url_for('main.api_docs_page') }}" class="btn btn-primary">API Docs</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Live Log Feed <span class="badge bg-light text-dark ms-2">{{ total_logs }} logs</span></h5>
+                <span id="connection-status" class="badge bg-secondary">Connecting...</span>
+            </div>
+            <div class="card-body">
+                <div id="live-logs" class="live-log-container">
+                    <div class="text-center text-muted py-5">
+                        <p>Waiting for new logs...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Connect to WebSocket
+        const socket = io();
+        const liveLogsContainer = document.getElementById('live-logs');
+        const connectionStatus = document.getElementById('connection-status');
+        const totalLogsElement = document.querySelector('.card-header .badge.bg-light');
+        let totalLogs = parseInt(totalLogsElement.textContent.split(' ')[0]);
+        
+        // Handle connection events
+        socket.on('connect', function() {
+            connectionStatus.textContent = 'Connected';
+            connectionStatus.classList.remove('bg-secondary', 'bg-danger');
+            connectionStatus.classList.add('bg-success');
+        });
+        
+        socket.on('disconnect', function() {
+            connectionStatus.textContent = 'Disconnected';
+            connectionStatus.classList.remove('bg-secondary', 'bg-success');
+            connectionStatus.classList.add('bg-danger');
+        });
+        
+        // Handle new log events
+        socket.on('new_log', function(log) {
+            // Clear the "waiting for logs" message if it exists
+            if (liveLogsContainer.querySelector('.text-muted')) {
+                liveLogsContainer.innerHTML = '';
+            }
+            
+            // Increment total logs count
+            totalLogs++;
+            totalLogsElement.textContent = totalLogs + ' logs';
+            
+            // Create log entry element
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry p-2 mb-2 border-bottom';
+            
+            // Format timestamp
+            const timestamp = new Date(log.timestamp);
+            const formattedTime = timestamp.toLocaleString();
+            
+            // Determine badge color based on log level
+            let badgeClass = 'bg-secondary';
+            switch(log.level.toLowerCase()) {
+                case 'info':
+                    badgeClass = 'bg-info';
+                    break;
+                case 'warning':
+                    badgeClass = 'bg-warning text-dark';
+                    break;
+                case 'error':
+                    badgeClass = 'bg-danger';
+                    break;
+                case 'debug':
+                    badgeClass = 'bg-secondary';
+                    break;
+                case 'critical':
+                    badgeClass = 'bg-dark';
+                    break;
+            }
+            
+            // Build log entry HTML
+            logEntry.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="badge ${badgeClass}">${log.level}</span>
+                        <strong>${log.message}</strong>
+                    </div>
+                    <small class="text-muted">${formattedTime}</small>
+                </div>
+                ${log.source ? `<div class="small text-muted">Source: ${log.source}</div>` : ''}
+                ${log.metadata ? `<div class="small mt-1"><pre class="mb-0 p-2 bg-light rounded">${JSON.stringify(log.metadata, null, 2)}</pre></div>` : ''}
+            `;
+            
+            // Add to container at the top
+            liveLogsContainer.insertBefore(logEntry, liveLogsContainer.firstChild);
+            
+            // Limit the number of displayed logs to prevent performance issues
+            const maxLogs = 50;
+            const logEntries = liveLogsContainer.querySelectorAll('.log-entry');
+            if (logEntries.length > maxLogs) {
+                for (let i = maxLogs; i < logEntries.length; i++) {
+                    logEntries[i].remove();
+                }
+            }
+        });
+    });
+</script>
+{% endblock %} 

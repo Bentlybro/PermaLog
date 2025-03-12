@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}Edit User - PermaLog{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Edit User</h1>
+            <p class="lead">Update user information and permissions.</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Edit User: {{ user.username }}</h5>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <form method="post" action="{{ url_for('admin.admin_edit_user', user_id=user.id) }}">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" placeholder="Leave blank to keep current password">
+                            <div class="form-text">Only fill this if you want to change the password.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="role" class="form-label">Role</label>
+                            <select class="form-select" id="role" name="role" required>
+                                <option value="user" {% if user.role == 'user' %}selected{% endif %}>User</option>
+                                <option value="moderator" {% if user.role == 'moderator' %}selected{% endif %}>Moderator</option>
+                                <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                            </select>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="active" name="active" {% if user.active %}checked{% endif %}>
+                            <label class="form-check-label" for="active">Active</label>
+                            <div class="form-text">Inactive users cannot log in.</div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin.admin_users') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Danger Zone</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5>Delete User</h5>
+                            <p class="mb-0">Permanently delete this user and all associated data.</p>
+                        </div>
+                        <button type="button" class="btn btn-danger" 
+                                onclick="confirmDeleteUser('{{ user.id }}', '{{ user.username|escapejs }}')">
+                            Delete User
+                        </button>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5>Reset Password</h5>
+                            <p class="mb-0">Generate a new random password for this user.</p>
+                        </div>
+                        <button type="button" class="btn btn-warning" 
+                                onclick="confirmResetPassword('{{ user.id }}', '{{ user.username|escapejs }}')">
+                            Reset Password
+                        </button>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5>Invalidate Sessions</h5>
+                            <p class="mb-0">Log out this user from all devices.</p>
+                        </div>
+                        <button type="button" class="btn btn-warning" 
+                                onclick="confirmInvalidateSessions('{{ user.id }}', '{{ user.username|escapejs }}')">
+                            Invalidate Sessions
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete User Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteUserModalLabel">Delete User</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the user <strong id="delete-user-name"></strong>?</p>
+                <p>This action cannot be undone. All API keys associated with this user will also be deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-btn">Delete User</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="resetPasswordModalLabel">Reset Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to reset the password for <strong id="reset-password-user-name"></strong>?</p>
+                <p>A new random password will be generated and displayed to you. The user will need to change it on their next login.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="confirm-reset-password-btn">Reset Password</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Invalidate Sessions Modal -->
+<div class="modal fade" id="invalidateSessionsModal" tabindex="-1" aria-labelledby="invalidateSessionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="invalidateSessionsModalLabel">Invalidate Sessions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to invalidate all sessions for <strong id="invalidate-sessions-user-name"></strong>?</p>
+                <p>This will log the user out from all devices. They will need to log in again.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="confirm-invalidate-sessions-btn">Invalidate Sessions</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function confirmDeleteUser(userId, username) {
+        document.getElementById('delete-user-name').textContent = username;
+        
+        // Set up the confirm button
+        document.getElementById('confirm-delete-btn').onclick = function() {
+            deleteUser(userId);
+        };
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
+        modal.show();
+    }
+    
+    function deleteUser(userId) {
+        fetch(`/api/admin/users/${userId}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to delete user');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Redirect to user list
+            window.location.href = "{{ url_for('admin.admin_users') }}";
+        })
+        .catch(error => {
+            console.error('Error deleting user:', error);
+            alert('Error deleting user. Please try again.');
+        });
+    }
+    
+    function confirmResetPassword(userId, username) {
+        document.getElementById('reset-password-user-name').textContent = username;
+        
+        // Set up the confirm button
+        document.getElementById('confirm-reset-password-btn').onclick = function() {
+            resetPassword(userId);
+        };
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+        modal.show();
+    }
+    
+    function resetPassword(userId) {
+        fetch(`/api/admin/users/${userId}/reset-password`, {
+            method: 'POST'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to reset password');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Hide the modal
+            bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+            
+            // Show the new password
+            alert(`Password reset successfully. New password: ${data.password}`);
+        })
+        .catch(error => {
+            console.error('Error resetting password:', error);
+            alert('Error resetting password. Please try again.');
+        });
+    }
+    
+    function confirmInvalidateSessions(userId, username) {
+        document.getElementById('invalidate-sessions-user-name').textContent = username;
+        
+        // Set up the confirm button
+        document.getElementById('confirm-invalidate-sessions-btn').onclick = function() {
+            invalidateSessions(userId);
+        };
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('invalidateSessionsModal'));
+        modal.show();
+    }
+    
+    function invalidateSessions(userId) {
+        fetch(`/api/admin/users/${userId}/invalidate-sessions`, {
+            method: 'POST'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to invalidate sessions');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Hide the modal
+            bootstrap.Modal.getInstance(document.getElementById('invalidateSessionsModal')).hide();
+            
+            // Show success message
+            alert('Sessions invalidated successfully');
+        })
+        .catch(error => {
+            console.error('Error invalidating sessions:', error);
+            alert('Error invalidating sessions. Please try again.');
+        });
+    }
+</script>
+{% endblock %} 

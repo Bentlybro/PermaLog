@@ -1,0 +1,684 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - PermaLog{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="bi bi-journal-text me-2"></i>Log Explorer
+                </h4>
+                <span class="badge bg-primary">{{ total_logs }} total logs</span>
+            </div>
+            <div class="card-body">
+                <form method="get" action="{{ url_for('main.logs_page') }}" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="level" class="form-label">Log Level</label>
+                        <select class="form-select" id="level" name="level">
+                            <option value="" {% if not level %}selected{% endif %}>All Levels</option>
+                            <option value="debug" {% if level == 'debug' %}selected{% endif %}>Debug</option>
+                            <option value="info" {% if level == 'info' %}selected{% endif %}>Info</option>
+                            <option value="warning" {% if level == 'warning' %}selected{% endif %}>Warning</option>
+                            <option value="error" {% if level == 'error' %}selected{% endif %}>Error</option>
+                            <option value="critical" {% if level == 'critical' %}selected{% endif %}>Critical</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="source" class="form-label">Source</label>
+                        <input type="text" class="form-control" id="source" name="source" value="{{ source or '' }}" placeholder="Filter by source">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="start_time" class="form-label">Start Time</label>
+                        <input type="datetime-local" class="form-control" id="start_time" name="start_time" value="{{ start_time or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end_time" class="form-label">End Time</label>
+                        <input type="datetime-local" class="form-control" id="end_time" name="end_time" value="{{ end_time or '' }}">
+                    </div>
+                    <div class="col-12 text-end">
+                        <a href="{{ url_for('main.logs_page') }}" class="btn btn-outline-secondary me-2">
+                            <i class="bi bi-x-circle me-1"></i>Reset
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-filter me-1"></i>Apply Filters
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <h5 class="mb-0">Logs</h5>
+                    <div id="new-logs-badge" class="badge bg-primary ms-2" style="display: none;">
+                        <i class="bi bi-arrow-clockwise me-1"></i><span id="new-logs-count">0</span> new logs
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="form-check form-switch me-3">
+                        <input class="form-check-input" type="checkbox" id="auto-refresh-toggle" checked>
+                        <label class="form-check-label" for="auto-refresh-toggle">Auto-refresh</label>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-gear-fill me-1"></i>Options
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton">
+                            <li><a class="dropdown-item" href="{{ url_for('main.logs_page', page=page, per_page=25, level=level, source=source, start_time=start_time, end_time=end_time) }}">Show 25 logs</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.logs_page', page=page, per_page=50, level=level, source=source, start_time=start_time, end_time=end_time) }}">Show 50 logs</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.logs_page', page=page, per_page=100, level=level, source=source, start_time=start_time, end_time=end_time) }}">Show 100 logs</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.verify_page') }}">Verify Log Chain</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Export Logs</h6></li>
+                            <li><a class="dropdown-item" href="/api/export?format=json{% if level %}&level={{ level }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if start_time %}&start_time={{ start_time }}{% endif %}{% if end_time %}&end_time={{ end_time }}{% endif %}" target="_blank">
+                                <i class="bi bi-filetype-json me-1"></i>Export as JSON
+                            </a></li>
+                            <li><a class="dropdown-item" href="/api/export?format=csv{% if level %}&level={{ level }}{% endif %}{% if source %}&source={{ source }}{% endif %}{% if start_time %}&start_time={{ start_time }}{% endif %}{% if end_time %}&end_time={{ end_time }}{% endif %}" target="_blank">
+                                <i class="bi bi-filetype-csv me-1"></i>Export as CSV
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if logs %}
+                <div class="table-responsive" id="logs-table-container">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Timestamp</th>
+                                <th>Level</th>
+                                <th>Message</th>
+                                <th>Source</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-table-body">
+                            {% for log in logs %}
+                            <tr data-log-id="{{ log.id }}">
+                                <td><span class="badge bg-secondary">#{{ log.id }}</span></td>
+                                <td>{{ log.timestamp }}</td>
+                                <td>
+                                    {% if log.level == 'info' %}
+                                    <span class="badge bg-info">{{ log.level }}</span>
+                                    {% elif log.level == 'warning' %}
+                                    <span class="badge bg-warning text-dark">{{ log.level }}</span>
+                                    {% elif log.level == 'error' %}
+                                    <span class="badge bg-danger">{{ log.level }}</span>
+                                    {% elif log.level == 'debug' %}
+                                    <span class="badge bg-secondary">{{ log.level }}</span>
+                                    {% elif log.level == 'critical' %}
+                                    <span class="badge bg-dark">{{ log.level }}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ log.level }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ log.message }}</td>
+                                <td>{% if log.source %}<span class="badge bg-secondary">{{ log.source }}</span>{% else %}-{% endif %}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button class="btn btn-outline-primary view-details" data-log-id="{{ log.id }}" data-bs-toggle="modal" data-bs-target="#logDetailsModal">
+                                            <i class="bi bi-info-circle me-1"></i>Details
+                                        </button>
+                                        <a href="{{ url_for('main.verify_page') }}?log_id={{ log.id }}" class="btn btn-outline-success">
+                                            <i class="bi bi-shield-check me-1"></i>Verify
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                    <div>
+                        Showing {{ (page - 1) * per_page + 1 }} to {{ (page - 1) * per_page + logs|length }} of {{ total_logs }} logs
+                    </div>
+                    <nav aria-label="Log pagination">
+                        <ul class="pagination mb-0">
+                            {% if page > 1 %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.logs_page', page=page-1, per_page=per_page, level=level, source=source, start_time=start_time, end_time=end_time) }}">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <a class="page-link" href="#">{{ page }}</a>
+                            </li>
+                            
+                            {% if logs|length == per_page and (page * per_page) < total_logs %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.logs_page', page=page+1, per_page=per_page, level=level, source=source, start_time=start_time, end_time=end_time) }}">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% else %}
+                <div class="text-center p-5">
+                    <i class="bi bi-search display-1 text-muted mb-3"></i>
+                    <p class="text-muted">No logs found matching your criteria.</p>
+                    {% if level or source or start_time or end_time %}
+                    <a href="{{ url_for('main.logs_page') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-x-circle me-1"></i>Clear Filters
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Store log data in a hidden element for JavaScript access -->
+<div id="logs-data" style="display: none;" data-logs='{{ logs|tojson|safe }}'></div>
+
+<!-- Log Details Modal -->
+<div class="modal fade" id="logDetailsModal" tabindex="-1" aria-labelledby="logDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logDetailsModalLabel">
+                    <i class="bi bi-journal-text me-2"></i>Log Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="log-details-content">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>Close
+                </button>
+                <a id="verify-log-btn" href="#" class="btn btn-success">
+                    <i class="bi bi-shield-check me-1"></i>Verify Integrity
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get preloaded log data
+        const logsDataElement = document.getElementById('logs-data');
+        const logsData = JSON.parse(logsDataElement.getAttribute('data-logs'));
+        
+        // Create a map of logs by ID for quick access
+        const logsMap = {};
+        logsData.forEach(function(log) {
+            logsMap[log.id] = log;
+        });
+        
+        // For debugging
+        console.log('Preloaded logs:', logsData);
+        console.log('Logs map:', logsMap);
+        
+        // Handle log details modal
+        const logDetailsModal = document.getElementById('logDetailsModal');
+        const logDetailsContent = document.getElementById('log-details-content');
+        const verifyLogBtn = document.getElementById('verify-log-btn');
+        
+        // Get total logs count from the badge in the header
+        const totalLogsCount = parseInt("{{ total_logs }}");
+        
+        // Add event listeners to all "Details" buttons
+        document.querySelectorAll('.view-details').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const logId = parseInt(this.getAttribute('data-log-id'));
+                console.log('Viewing details for log ID:', logId);
+                
+                // Update the verify button link
+                verifyLogBtn.href = `/verify?log_id=${logId}`;
+                
+                // Get log details from preloaded data
+                const log = logsMap[logId];
+                console.log('Log details:', log);
+                
+                if (log) {
+                    displayLogDetails(log);
+                } else {
+                    // Fallback: fetch from API if not found in preloaded data
+                    logDetailsContent.innerHTML = `
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p>Loading log details...</p>
+                        </div>
+                    `;
+                    
+                    fetch(`/api/logs?limit=1&offset=0&id=${logId}`)
+                        .then(function(response) { return response.json(); })
+                        .then(function(data) {
+                            if (data && data.length > 0) {
+                                const apiLog = data[0];
+                                // Add to our local cache
+                                logsMap[apiLog.id] = apiLog;
+                                displayLogDetails(apiLog);
+                            } else {
+                                logDetailsContent.innerHTML = '<div class="alert alert-danger">Log not found</div>';
+                            }
+                        })
+                        .catch(function(error) {
+                            logDetailsContent.innerHTML = `<div class="alert alert-danger">Error loading log details: ${error.message}</div>`;
+                        });
+                }
+            });
+        });
+
+        // Helper function to display log details
+        function displayLogDetails(log) {
+            // Format timestamp
+            const timestamp = new Date(log.timestamp);
+            const formattedTime = timestamp.toLocaleString();
+            
+            // Format metadata
+            const metadata = log.metadata_json || (log.metadata ? JSON.stringify(log.metadata, null, 2) : 'None');
+            
+            // Determine badge class for log level
+            let badgeClass = 'bg-secondary';
+            switch(log.level.toLowerCase()) {
+                case 'info':
+                    badgeClass = 'bg-info';
+                    break;
+                case 'warning':
+                    badgeClass = 'bg-warning text-dark';
+                    break;
+                case 'error':
+                    badgeClass = 'bg-danger';
+                    break;
+                case 'debug':
+                    badgeClass = 'bg-secondary';
+                    break;
+                case 'critical':
+                    badgeClass = 'bg-dark';
+                    break;
+            }
+            
+            // Build HTML for log details with improved styling
+            let html = `
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge ${badgeClass} me-2">${log.level}</span>
+                            <strong>Log #${log.id}</strong>
+                        </div>
+                        <small class="text-muted">${formattedTime}</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <h6 class="border-bottom pb-2">Message</h6>
+                                <p>${log.message}</p>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <h6 class="border-bottom pb-2">Source</h6>
+                                <p>${log.source || '<span class="text-muted">None</span>'}</p>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <h6 class="border-bottom pb-2">Timestamp</h6>
+                                <p>${formattedTime}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6 class="border-bottom pb-2">Metadata</h6>
+                            ${metadata === 'None' ? 
+                                '<p class="text-muted">No metadata available</p>' : 
+                                `<pre class="bg-light p-3 rounded">${metadata}</pre>`
+                            }
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Blockchain Integrity</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <h6 class="border-bottom pb-2">Hash</h6>
+                                <div class="d-flex align-items-center">
+                                    <code class="text-break flex-grow-1">${log.hash || 'Not available'}</code>
+                                    <button class="btn btn-sm btn-outline-secondary ms-2 copy-hash" data-hash="${log.hash || ''}">
+                                        <i class="bi bi-clipboard"></i> Copy
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-12">
+                                <h6 class="border-bottom pb-2">Previous Hash</h6>
+                                <div class="d-flex align-items-center">
+                                    <code class="text-break flex-grow-1">${log.prev_hash || 'None (First Log)'}</code>
+                                    <button class="btn btn-sm btn-outline-secondary ms-2 copy-hash" data-hash="${log.prev_hash || ''}">
+                                        <i class="bi bi-clipboard"></i> Copy
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            logDetailsContent.innerHTML = html;
+            
+            // Add event listeners to copy buttons
+            document.querySelectorAll('.copy-hash').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    const hash = this.getAttribute('data-hash');
+                    if (hash) {
+                        navigator.clipboard.writeText(hash).then(
+                            function() {
+                                // Change button text temporarily
+                                const originalText = button.innerHTML;
+                                button.innerHTML = '<i class="bi bi-check"></i> Copied!';
+                                setTimeout(function() {
+                                    button.innerHTML = originalText;
+                                }, 2000);
+                            },
+                            function() {
+                                console.error('Failed to copy hash');
+                            }
+                        );
+                    }
+                });
+            });
+        }
+
+        // Auto-refresh functionality
+        const logsTableContainer = document.getElementById('logs-table-container');
+        const logsTableBody = document.getElementById('logs-table-body');
+        const newLogsCount = document.getElementById('new-logs-count');
+        const newLogsBadge = document.getElementById('new-logs-badge');
+        const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
+        
+        let isHovering = false;
+        let refreshInterval = null;
+        let newLogsBuffer = [];
+        let lastLogId = getLastLogId();
+        
+        // Get the ID of the most recent log
+        function getLastLogId() {
+            const rows = logsTableBody.querySelectorAll('tr');
+            if (rows.length > 0) {
+                return parseInt(rows[0].getAttribute('data-log-id'));
+            }
+            return 0;
+        }
+        
+        // Format a log entry as a table row
+        function formatLogRow(log) {
+            let badgeClass = 'bg-secondary';
+            switch(log.level.toLowerCase()) {
+                case 'info':
+                    badgeClass = 'bg-info';
+                    break;
+                case 'warning':
+                    badgeClass = 'bg-warning text-dark';
+                    break;
+                case 'error':
+                    badgeClass = 'bg-danger';
+                    break;
+                case 'debug':
+                    badgeClass = 'bg-secondary';
+                    break;
+                case 'critical':
+                    badgeClass = 'bg-dark';
+                    break;
+            }
+            
+            return `
+                <tr class="new-log-row" data-log-id="${log.id}">
+                    <td><span class="badge bg-secondary">#${log.id}</span></td>
+                    <td>${log.timestamp}</td>
+                    <td>
+                        <span class="badge ${badgeClass}">${log.level}</span>
+                    </td>
+                    <td>${log.message}</td>
+                    <td>${log.source ? `<span class="badge bg-secondary">${log.source}</span>` : '-'}</td>
+                    <td>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button class="btn btn-outline-primary view-details" data-log-id="${log.id}" data-bs-toggle="modal" data-bs-target="#logDetailsModal">
+                                <i class="bi bi-info-circle me-1"></i>Details
+                            </button>
+                            <a href="/verify?log_id=${log.id}" class="btn btn-outline-success">
+                                <i class="bi bi-shield-check me-1"></i>Verify
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+        
+        // Fetch new logs
+        function fetchNewLogs() {
+            // Get current filter parameters
+            const level = document.getElementById('level').value;
+            const source = document.getElementById('source').value;
+            const startTime = document.getElementById('start_time').value;
+            const endTime = document.getElementById('end_time').value;
+            
+            // Build query parameters
+            const params = new URLSearchParams(window.location.search);
+            params.set('ajax', 'true');
+            
+            // Fetch new logs by reloading the page with AJAX
+            fetch(`${window.location.pathname}?${params.toString()}`)
+                .then(function(response) { return response.text(); })
+                .then(function(html) {
+                    // Create a temporary element to parse the HTML
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    
+                    // Extract the logs data
+                    const newLogsDataElement = tempDiv.querySelector('#logs-data');
+                    if (!newLogsDataElement) return;
+                    
+                    const newLogsData = JSON.parse(newLogsDataElement.getAttribute('data-logs'));
+                    
+                    // Filter out logs we already have
+                    const newLogs = newLogsData.filter(function(log) { return log.id > lastLogId; });
+                    
+                    if (newLogs.length > 0) {
+                        // Update the last log ID
+                        lastLogId = newLogs[0].id;
+                        
+                        // Update the logs map with new logs
+                        newLogs.forEach(function(log) {
+                            logsMap[log.id] = log;
+                        });
+                        
+                        if (isHovering || !autoRefreshToggle.checked) {
+                            // If hovering or auto-refresh is disabled, add to buffer and update counter
+                            newLogsBuffer = newLogs.concat(newLogsBuffer);
+                            newLogsCount.textContent = newLogsBuffer.length;
+                            newLogsBadge.style.display = 'inline-block';
+                        } else {
+                            // If not hovering, update the table directly
+                            updateTable(newLogs);
+                        }
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Error fetching new logs:', error);
+                });
+        }
+        
+        // Update the table with new logs
+        function updateTable(logs) {
+            if (logs.length === 0) return;
+            
+            // Add new logs to the top of the table
+            const newRows = logs.map(formatLogRow).join('');
+            logsTableBody.innerHTML = newRows + logsTableBody.innerHTML;
+            
+            // Attach event listeners to new "Details" buttons
+            logsTableBody.querySelectorAll('.new-log-row .view-details').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    const logId = parseInt(this.getAttribute('data-log-id'));
+                    verifyLogBtn.href = `/verify?log_id=${logId}`;
+                    
+                    // Get log details from preloaded data
+                    const log = logsMap[logId];
+                    
+                    if (log) {
+                        displayLogDetails(log);
+                    } else {
+                        // Fallback: fetch from API if not found in preloaded data
+                        logDetailsContent.innerHTML = `
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p>Loading log details...</p>
+                            </div>
+                        `;
+                        
+                        fetch(`/api/logs?limit=1&offset=0&id=${logId}`)
+                            .then(function(response) { return response.json(); })
+                            .then(function(data) {
+                                if (data && data.length > 0) {
+                                    const apiLog = data[0];
+                                    // Add to our local cache
+                                    logsMap[apiLog.id] = apiLog;
+                                    displayLogDetails(apiLog);
+                                } else {
+                                    logDetailsContent.innerHTML = '<div class="alert alert-danger">Log not found</div>';
+                                }
+                            })
+                            .catch(function(error) {
+                                logDetailsContent.innerHTML = `<div class="alert alert-danger">Error loading log details: ${error.message}</div>`;
+                            });
+                    }
+                });
+            });
+            
+            // Remove the 'new-log-row' class after animation completes
+            setTimeout(function() {
+                document.querySelectorAll('.new-log-row').forEach(function(row) {
+                    row.classList.remove('new-log-row');
+                });
+            }, 3000);
+            
+            // Trim the table to maintain the per_page limit
+            const rows = logsTableBody.querySelectorAll('tr');
+            // Get per_page from the URL or default to 50
+            const perPageParam = new URLSearchParams(window.location.search).get('per_page');
+            const maxRows = perPageParam ? parseInt(perPageParam) : 50;
+            
+            if (rows.length > maxRows) {
+                for (let i = maxRows; i < rows.length; i++) {
+                    rows[i].remove();
+                }
+            }
+        }
+        
+        // Handle mouse hover events
+        logsTableContainer.addEventListener('mouseenter', function() {
+            isHovering = true;
+        });
+        
+        logsTableContainer.addEventListener('mouseleave', function() {
+            isHovering = false;
+            
+            // If there are buffered logs, update the table and reset the counter
+            if (newLogsBuffer.length > 0 && autoRefreshToggle.checked) {
+                updateTable(newLogsBuffer);
+                newLogsBuffer = [];
+                newLogsCount.textContent = '0';
+                newLogsBadge.style.display = 'none';
+            }
+        });
+        
+        // Handle click on the new logs badge
+        newLogsBadge.addEventListener('click', function() {
+            if (newLogsBuffer.length > 0) {
+                updateTable(newLogsBuffer);
+                newLogsBuffer = [];
+                newLogsCount.textContent = '0';
+                newLogsBadge.style.display = 'none';
+            }
+        });
+        
+        // Handle auto-refresh toggle
+        autoRefreshToggle.addEventListener('change', function() {
+            if (this.checked) {
+                // If turning on auto-refresh and not hovering, update with buffered logs
+                if (!isHovering && newLogsBuffer.length > 0) {
+                    updateTable(newLogsBuffer);
+                    newLogsBuffer = [];
+                    newLogsCount.textContent = '0';
+                    newLogsBadge.style.display = 'none';
+                }
+                
+                // Start the refresh interval
+                startRefreshInterval();
+            } else {
+                // Stop the refresh interval
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        });
+        
+        // Start the refresh interval
+        function startRefreshInterval() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            refreshInterval = setInterval(fetchNewLogs, 7000); // Refresh every 7 seconds
+        }
+        
+        // Initialize the auto-refresh
+        if (autoRefreshToggle.checked) {
+            startRefreshInterval();
+        }
+        
+        // Connect to WebSocket for real-time updates
+        if (typeof io !== 'undefined') {
+            const socket = io();
+            
+            socket.on('new_log', function() {
+                // When a new log is received via WebSocket, fetch new logs
+                fetchNewLogs();
+            });
+        }
+    });
+})();
+</script>
+{% endblock %} 

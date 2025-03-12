@@ -1,0 +1,15 @@
+Flask
+Flask-SocketIO
+python-socketio
+python-engineio
+Werkzeug
+Jinja2
+itsdangerous
+click
+colorama
+simple-websocket
+requests
+Faker
+bcrypt
+cryptography
+python-dotenv
