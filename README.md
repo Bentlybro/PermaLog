@@ -283,6 +283,29 @@ except KeyboardInterrupt:
     sio.disconnect()
 ```
 
+## Screenshots
+
+Main dashboard
+![image](https://github.com/user-attachments/assets/ccb3f666-b093-4774-8c75-2ac18209a298)
+
+
+Log explorer
+![image](https://github.com/user-attachments/assets/0aba49d4-d277-4aec-8d27-cd4ab88a027d)
+![image](https://github.com/user-attachments/assets/777e0d88-2770-4247-ba72-b884f5930642)
+
+
+Log verification
+![image](https://github.com/user-attachments/assets/1ec85e1f-f1b8-4ee6-a6f0-2524fe06449b)
+![image](https://github.com/user-attachments/assets/1038a9a7-cfa9-4e3e-baa7-fc20169f4dad)
+
+![image](https://github.com/user-attachments/assets/b9a1bd8d-6a99-4422-bbcb-80ba33f8fe69)
+![image](https://github.com/user-attachments/assets/ba5d6aeb-6e0f-434f-b88b-3100ca43931c)
+
+
+
+
+
+
 ## License
 
 [MIT License](LICENSE) 
