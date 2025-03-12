@@ -87,7 +87,7 @@ On first startup, if no users exist in the system, PermaLog will automatically c
 
 PermaLog includes a comprehensive authentication system with the following features:
 
-- **User Registration**: Self-service user registration with email verification
+- **User Registration**: Self-service user registration
 - **Role-Based Access Control**: Three user roles with different permissions:
   - **User**: Can view dashboard, logs, verify logs, and API documentation
   - **Moderator**: User permissions plus API key management
