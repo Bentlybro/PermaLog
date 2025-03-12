@@ -248,23 +248,39 @@ if __name__ == "__main__":
         source="database-service",
         metadata={"error_code": "DB_CONN_001", "retry_count": 3}
     )
-
+```
 ## Example: WebSocket Integration
 
-```javascript
-// Connect to WebSocket
-const socket = io('http://your-permalog-server');
+```python
+import socketio
+import json
 
-// Handle connection events
-socket.on('connect', () => {
-  console.log('Connected to PermaLog WebSocket');
-});
+# Create a Socket.IO client
+sio = socketio.Client()
 
-// Handle new log events
-socket.on('new_log', (log) => {
-  console.log('New log received:', log);
-  // Process the new log...
-});
+# Define event handlers
+@sio.event
+def connect():
+    print('Connected to PermaLog WebSocket')
+
+@sio.event
+def disconnect():
+    print('Disconnected from PermaLog WebSocket')
+
+@sio.event
+def new_log(log):
+    print(f'New log received: {json.dumps(log, indent=2)}')
+    # Process the new log...
+
+# Connect to the server
+sio.connect('http://your-permalog-server')
+
+# Keep the connection alive (in a real application, you might have other code running)
+try:
+    sio.wait()
+except KeyboardInterrupt:
+    # Gracefully disconnect on keyboard interrupt
+    sio.disconnect()
 ```
 
 ## License
