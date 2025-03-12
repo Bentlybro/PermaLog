@@ -286,3 +286,7 @@ except KeyboardInterrupt:
 ## License
 
 [MIT License](LICENSE) 
+
+## Security
+
+For information about reporting security vulnerabilities, please see our [Security Policy](SECURITY.md). 
