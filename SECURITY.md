@@ -31,7 +31,7 @@ When you report an issue, we will:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.x.x   | :white_check_mark: |
+| Current | :white_check_mark: |
 
 ## Security Best Practices
 
