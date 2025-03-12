@@ -142,6 +142,113 @@ print(response.status_code)  # Should be 201
 print(json.dumps(response.json(), indent=2))
 ```
 
+## Example: Convenient Logging Function
+
+Here's a more convenient way to use PermaLog in your applications:
+
+```python
+import requests
+import json
+from typing import Dict, Any, Optional
+
+class PermaLogger:
+    def __init__(self, base_url: str, api_key: str, default_source: str = "app"):
+        """
+        Initialize the PermaLogger.
+        
+        Args:
+            base_url: The base URL of your PermaLog server
+            api_key: Your PermaLog API key
+            default_source: Default source name for logs
+        """
+        self.base_url = base_url.rstrip('/')
+        self.api_key = api_key
+        self.default_source = default_source
+        self.headers = {
+            "Content-Type": "application/json",
+            "X-API-Key": api_key
+        }
+    
+    def log(self, 
+            message: str, 
+            level: str = "info", 
+            source: Optional[str] = None, 
+            metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Send a log entry to PermaLog.
+        
+        Args:
+            message: The log message
+            level: Log level (info, warning, error, debug, etc.)
+            source: Source of the log (defaults to the one set in constructor)
+            metadata: Additional metadata for the log entry
+            
+        Returns:
+            The response from the PermaLog server as a dictionary
+        """
+        url = f"{self.base_url}/api/log"
+        
+        data = {
+            "level": level,
+            "message": message,
+            "source": source or self.default_source,
+            "metadata": metadata or {}
+        }
+        
+        try:
+            response = requests.post(url, headers=self.headers, json=data)
+            response.raise_for_status()  # Raise exception for 4XX/5XX responses
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            # Handle the error or re-raise
+            print(f"Error sending log to PermaLog: {e}")
+            return {"error": str(e)}
+    
+    def info(self, message: str, source: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Convenience method for info logs."""
+        return self.log(message, "info", source, metadata)
+    
+    def warning(self, message: str, source: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Convenience method for warning logs."""
+        return self.log(message, "warning", source, metadata)
+    
+    def error(self, message: str, source: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Convenience method for error logs."""
+        return self.log(message, "error", source, metadata)
+    
+    def debug(self, message: str, source: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Convenience method for debug logs."""
+        return self.log(message, "debug", source, metadata)
+
+
+# Usage example:
+if __name__ == "__main__":
+    # Initialize the logger
+    logger = PermaLogger(
+        base_url="http://your-permalog-server",
+        api_key="your_api_key_here",
+        default_source="user-service"
+    )
+    
+    # Simple log
+    logger.info("User logged in")
+    
+    # Log with metadata
+    logger.info(
+        message="User profile updated",
+        metadata={
+            "user_id": 123,
+            "changes": {"name": "New Name", "email": "new@example.com"}
+        }
+    )
+    
+    # Error log from a different source
+    logger.error(
+        message="Database connection failed",
+        source="database-service",
+        metadata={"error_code": "DB_CONN_001", "retry_count": 3}
+    )
+
 ## Example: WebSocket Integration
 
 ```javascript
